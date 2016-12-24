@@ -32,8 +32,10 @@
 #include <hildon/hildon.h>
 
 #include <dbus/dbus-glib-bindings.h>
+#ifdef HAVE_DSME
 #include <mce/dbus-names.h>
 #include <mce/mode-names.h>
+#endif
 
 #include <osso-mem.h>
 
@@ -1614,7 +1616,7 @@ initialize_filter_current_window_changes (void)
 {
   GdkWindow *root_win;
 
-  root_win = gdk_window_foreign_new_for_display (gdk_display_get_default (),
+  root_win = gdk_x11_window_foreign_new_for_display (gdk_display_get_default (),
                                                  gdk_x11_get_default_root_xwindow ());
   gdk_window_set_events (root_win,
                          gdk_window_get_events (root_win) |

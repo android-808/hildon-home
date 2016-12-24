@@ -78,9 +78,10 @@ hd_search_service_class_init (HDSearchServiceClass *klass)
 static void
 hd_search_service_init (HDSearchService *search_service)
 {
-  HDSearchServicePrivate *priv;
+  //HDSearchServicePrivate *priv;
 
-  priv = search_service->priv = HD_SEARCH_SERVICE_GET_PRIVATE (search_service);
+  //priv = search_service->priv = HD_SEARCH_SERVICE_GET_PRIVATE (search_service);
+  search_service->priv = HD_SEARCH_SERVICE_GET_PRIVATE (search_service);
 
   init_tracker_proxy (search_service);
 }

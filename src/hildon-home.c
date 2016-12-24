@@ -26,7 +26,7 @@
 #endif
 
 #include <glib/gstdio.h>
-#include <libgnomevfs/gnome-vfs.h>
+#include <gio/gio.h>
 #include <libhildondesktop/libhildondesktop.h>
 #include <hildon/hildon.h>
 #include <gconf/gconf-client.h>
@@ -296,12 +296,13 @@ done: /* Final clean up. */
   g_key_file_free (conf);
   return FALSE;
 }
-
+#ifdef DEAD_CODE
 static GdkFilterReturn
 dont_reread_rcfiles (GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
   return GDK_FILTER_REMOVE;
 }
+#endif
 
 int
 main (int argc, char **argv)
@@ -315,8 +316,6 @@ main (int argc, char **argv)
   textdomain (GETTEXT_PACKAGE);
 
   /* Initialize threads */
-  if (!g_thread_supported ())
-    g_thread_init (NULL);
 
   /* Ignore debug output */
   g_log_set_default_handler (log_ignore_debug_handler, NULL);
@@ -330,9 +329,6 @@ main (int argc, char **argv)
 
   /* Initialize Hildon */
   hildon_init ();
-
-  /* Initialize GnomeVFS */
-  gnome_vfs_init ();
 
   /* Add handler for signals */
   signal (SIGINT,  signal_handler);
@@ -395,6 +391,7 @@ main (int argc, char **argv)
                   "shortcut-type",  HD_TYPE_TASK_SHORTCUT,
                   "throttled",      !!conf, NULL);
 
+#ifdef HAVE_BOOKMARKS
   /* Bookmark Shortcuts */
   hd_bookmark_widgets_get ();
   hd_shortcuts_bookmarks =
@@ -402,15 +399,18 @@ main (int argc, char **argv)
                   "gconf-key",      HD_GCONF_KEY_HILDON_HOME_BOOKMARK_SHORTCUTS,
                   "shortcut-type",  HD_TYPE_BOOKMARK_SHORTCUT,
                   "throttled",      !!conf, NULL);
+#endif
 
   /* D-Bus */
   hd_hildon_home_dbus_get ();
 
   /* Don't bother re-styling widgets because we're restarted if the
    * theme changes anyway. */
+#ifdef DEAD_CODE
   gdk_add_client_message_filter (
                     gdk_atom_intern_static_string ("_GTK_READ_RCFILES"),
                     dont_reread_rcfiles, NULL);
+#endif
 
   /* Start the main loop */
   if (conf)

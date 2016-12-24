@@ -28,8 +28,10 @@
 
 #include <glib/gi18n.h>
 
+#ifdef HAVE_HILDON_FM
 #include <hildon/hildon-file-chooser-dialog.h>
 #include <hildon/hildon-file-selection.h>
+#endif
 
 #include <gconf/gconf-client.h>
 
@@ -199,8 +201,13 @@ hd_activate_views_dialog_init (HDActivateViewsDialog *dialog)
   /* Create Touch grid list */
   priv->model = (GtkTreeModel *) gtk_list_store_new (NUM_COLS, GDK_TYPE_PIXBUF);
 
+#ifdef MAEMO_GTK
   priv->icon_view = hildon_gtk_icon_view_new_with_model (HILDON_UI_MODE_EDIT,
-                                                         priv->model);
+  priv->model);
+#else
+  priv->icon_view = gtk_icon_view_new_with_model (priv->model);
+#endif
+
   gtk_icon_view_set_selection_mode (GTK_ICON_VIEW (priv->icon_view),
                                     GTK_SELECTION_MULTIPLE);
   gtk_icon_view_set_columns (GTK_ICON_VIEW (priv->icon_view),
@@ -357,7 +364,7 @@ hd_activate_views_dialog_init (HDActivateViewsDialog *dialog)
   gtk_widget_show (pannable);
   gtk_container_add (GTK_CONTAINER (pannable),
                      priv->icon_view);
-  gtk_container_add (GTK_CONTAINER (GTK_DIALOG (dialog)->vbox),
+  gtk_container_add (GTK_CONTAINER (gtk_dialog_get_content_area (GTK_DIALOG (dialog))),
 /*                     priv->icon_view); */
                     pannable);
 }

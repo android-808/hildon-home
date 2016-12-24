@@ -95,7 +95,7 @@ hd_desktop_pulsate_progress_bar (gpointer user_data)
 }
 
 static void
-progressbar_destroy_cb (GtkObject *progressbar,
+progressbar_destroy_cb (GtkWidget *progressbar,
                         gpointer   user_data)
 {
   g_source_remove (GPOINTER_TO_UINT (user_data));
@@ -132,9 +132,11 @@ create_note_dialog (const gchar  *summary,
     }
   else
     {
-      note = hildon_note_new_information_with_icon_name (NULL, 
+      note = hildon_note_new_confirmation (NULL,
+                                           body);
+/*      note = hildon_note_new_information_with_icon_name (NULL, 
                                                          body, 
-                                                         icon_name);
+                                                         icon_name);*/
     }
 
   /* If there's a default action, get the label and set

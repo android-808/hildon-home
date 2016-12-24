@@ -9,6 +9,7 @@ AM_MAINTAINER_MODE
 AM_INIT_AUTOMAKE
 
 AC_PROG_CC
+AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AM_PROG_LIBTOOL
 
@@ -68,15 +69,18 @@ AM_GLIB_GNU_GETTEXT
 AC_DEFINE(GETTEXT_PACKAGE, ["maemo-af-desktop"], [Localisation domain])
 
 PKG_CHECK_MODULES(HILDON_HOME,
-                  [hildon-1		>= 2.1.4	dnl
-		   hildon-fm-2		>= 2.0.9	dnl
+                  [hildon-3		>= 2.1.4	dnl
+		   dnl HAVE_HILDON_FM hildon-fm-2		>= 2.0.9	dnl
                    libhildondesktop-1	>= 2.1.37	dnl
-		   gnome-vfs-2.0	>= 2.8.3	dnl
+		   gio-2.0		>= 2.8.3	dnl
 		   sqlite3				dnl
-		   osso-bookmark-engine			dnl
-		   mce 					dnl
-		   libosso                              dnl
-		   hildon-thumbnail])
+		   gconf-2.0				dnl
+                   dbus-glib-1                          dnl
+		   dnl HAVE_BOOKMARKS osso-bookmark-engine			dnl
+		   dnl HAVE_DSME mce 					dnl
+		   dnl libosso                              dnl
+		   dnl HAVE_THUMBNAILS hildon-thumbnail
+		  ])
 
 AC_SUBST(HILDON_HOME_LIBS)
 AC_SUBST(HILDON_HOME_CFLAGS)
@@ -88,6 +92,8 @@ PKG_CHECK_MODULES(HILDON_SV_NOTIFICATION_DAEMON,
 
 AC_SUBST(HILDON_SV_NOTIFICATION_DAEMON_LIBS)
 AC_SUBST(HILDON_SV_NOTIFICATION_DAEMON_CFLAGS)
+
+PKG_CHECK_MODULES(X11, x11)
 
 # Check for ftw
 AC_CHECK_HEADERS([ftw.h],

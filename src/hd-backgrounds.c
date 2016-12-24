@@ -36,8 +36,6 @@
 
 #include <gconf/gconf-client.h>
 
-#include <libgnomevfs/gnome-vfs.h>
-
 #include <unistd.h>
 
 #include "hd-background-info.h"
@@ -98,7 +96,9 @@ struct _HDBackgroundsPrivate
   guint set_theme_idle_id;
 
   GVolumeMonitor *volume_monitor;
+#ifdef DEAD_CODE_TO_REMOVE
   GnomeVFSVolumeMonitor *volume_monitor2;
+#endif
 
   gboolean portrait_wallpaper;
 };
@@ -429,14 +429,15 @@ static char *
 get_current_theme (void)
 {
   gchar *current_theme;
+  GError *error;
 
-  current_theme = g_new0 (gchar, 2048);
-  if (readlink (CURRENT_THEME_DIR, current_theme, 2047) == -1)
+  current_theme = g_file_read_link (CURRENT_THEME_DIR, &error);
+  if (current_theme == NULL)
     {
       g_warning ("%s. Could not read current theme. %s",
                  __FUNCTION__,
-                 gnome_vfs_result_to_string (gnome_vfs_result_from_errno ()));
-      g_free (current_theme);
+                 error->message);
+      g_error_free (error);
       return NULL;
     }
 
@@ -653,7 +654,7 @@ hd_backgrounds_startup (HDBackgrounds *backgrounds)
   /* Get current theme */
   priv->current_theme = get_current_theme ();
 
-  root_win = gdk_window_foreign_new_for_display (gdk_display_get_default (),
+  root_win = gdk_x11_window_foreign_new_for_display (gdk_display_get_default (),
                                                  gdk_x11_get_default_root_xwindow ());
   gdk_window_set_events (root_win,
                          gdk_window_get_events (root_win) |
@@ -790,7 +791,7 @@ mount_pre_unmount_cb (GVolumeMonitor *monitor,
       gtk_widget_show (note);
     }
 }
-
+#ifdef DEAD_CODE_TO_REMOVE
 static void
 volume_pre_unmount_cb (GnomeVFSVolumeMonitor *monitor,
                        GnomeVFSVolume        *volume,
@@ -835,6 +836,7 @@ volume_pre_unmount_cb (GnomeVFSVolumeMonitor *monitor,
       gtk_widget_show (note);
     }
 }
+#endif
 
 static void
 hd_backgrounds_init (HDBackgrounds *backgrounds)
@@ -854,9 +856,11 @@ hd_backgrounds_init (HDBackgrounds *backgrounds)
   g_signal_connect (priv->volume_monitor, "mount-pre-unmount",
                     G_CALLBACK (mount_pre_unmount_cb), backgrounds);
 
+#ifdef DEAD_CODE_TO_REMOVE
   priv->volume_monitor2 = gnome_vfs_get_volume_monitor ();
   g_signal_connect (priv->volume_monitor2, "volume-pre-unmount",
                     G_CALLBACK (volume_pre_unmount_cb), backgrounds);
+#endif
 
   priv->portrait_wallpaper = gconf_client_get_bool (priv->gconf_client, GCONF_KEY_PORTRAIT_WALLPAPER, NULL);
 

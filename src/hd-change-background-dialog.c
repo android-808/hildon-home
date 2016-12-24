@@ -26,8 +26,10 @@
 
 #include <glib/gi18n.h>
 
+#ifdef HAVE_HILDON_FM
 #include <hildon/hildon-file-chooser-dialog.h>
 #include <hildon/hildon-file-selection.h>
+#endif
 
 #include "hd-available-backgrounds.h"
 #include "hd-backgrounds.h"
@@ -247,10 +249,11 @@ hd_change_background_dialog_response (GtkDialog *dialog,
 
   if (response_id == RESPONSE_ADD)
     {
+
       GtkWidget *add_image;
       GtkFileFilter *filter;
       gchar *images_folder;
-
+#ifdef HAVE_HILDON_FM
       /* Create the Add Image dialog */
       add_image = hildon_file_chooser_dialog_new_with_properties (GTK_WINDOW (dialog),
                                                                   "action", GTK_FILE_CHOOSER_ACTION_OPEN,
@@ -261,6 +264,18 @@ hd_change_background_dialog_response (GtkDialog *dialog,
                                                                   "selection-mode", HILDON_FILE_SELECTION_MODE_THUMBNAILS,
                                                                   "modal", FALSE,
                                                                   NULL);
+#else
+      /* Create the Add Image dialog */
+      add_image = gtk_file_chooser_dialog_new(dgettext (GETTEXT_PACKAGE, "home_ti_add_image"),
+                                              GTK_WINDOW (dialog),
+                                              GTK_FILE_CHOOSER_ACTION_OPEN,
+                                              _("_Cancel"),
+                                              GTK_RESPONSE_CANCEL,
+                                              _("_Open"),
+                                              GTK_RESPONSE_ACCEPT,
+                                              NULL);
+      gtk_file_chooser_set_select_multiple (GTK_FILE_CHOOSER(add_image), FALSE);
+#endif
 
       if (hd_change_background_dialog_is_portrait ())
         gtk_widget_set_size_request (GTK_WIDGET (add_image), -1, 654);
@@ -291,7 +306,7 @@ hd_change_background_dialog_response (GtkDialog *dialog,
 
       /* Show Add Image dialog */
       gtk_dialog_run (GTK_DIALOG (add_image));
-    }
+	}
   else if (response_id == GTK_RESPONSE_ACCEPT)
     {
       GtkTreeIter iter;
@@ -432,7 +447,7 @@ hd_change_background_dialog_init (HDChangeBackgroundDialog *dialog)
                 NULL);
 
   gtk_widget_show (priv->selector);
-  gtk_container_add (GTK_CONTAINER (GTK_DIALOG (dialog)->vbox), priv->selector);
+  gtk_container_add (GTK_CONTAINER (gtk_dialog_get_content_area (GTK_DIALOG (dialog))), priv->selector);
 
   if (hd_change_background_dialog_is_portrait ())
     gtk_widget_set_size_request (GTK_WIDGET (dialog), -1, 678);

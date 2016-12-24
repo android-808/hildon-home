@@ -259,7 +259,7 @@ plugin_added_cb (HDPluginManager *pm,
       gtk_widget_realize (GTK_WIDGET (plugin));
       display = GDK_DISPLAY_XDISPLAY (gtk_widget_get_display (GTK_WIDGET (plugin)));
       root = RootWindow (display, GDK_SCREEN_XNUMBER (gtk_widget_get_screen (GTK_WIDGET (plugin))));
-      XSetTransientForHint (display, GDK_WINDOW_XID (GTK_WIDGET (plugin)->window), root);
+      XSetTransientForHint (display, GDK_WINDOW_XID (gtk_widget_get_window(GTK_WIDGET (plugin))), root);
 
       if (priv->plugins_throttled)
         {

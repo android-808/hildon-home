@@ -28,7 +28,6 @@
 #include <hildon/hildon.h>
 
 #include <gconf/gconf-client.h>
-#include <libgnomevfs/gnome-vfs.h>
 #include <dbus/dbus-glib.h>
 
 #include <string.h>
@@ -460,33 +459,35 @@ hd_shortcut_widgets_remove_desktop_file (const gchar *filename)
 }
  
 static void
-applications_dir_changed (GnomeVFSMonitorHandle    *handle,
-                          const gchar              *monitor_uri,
-                          const gchar              *info_uri,
-                          GnomeVFSMonitorEventType  event_type,
-                          gpointer                  user_data)
+applications_dir_changed (GFileMonitor *monitor,
+                          GFile *file,
+                          GFile *other_file,
+                          GFileMonitorEvent event_type,
+                          gpointer data)
+
 {
-  if (g_file_test (info_uri, G_FILE_TEST_IS_DIR))
+  if (g_file_query_file_type (other_file, G_FILE_QUERY_INFO_NONE, NULL) !=
+      G_FILE_TYPE_DIRECTORY)
     {
-      if (event_type == GNOME_VFS_MONITOR_EVENT_CREATED)
+      if (event_type == G_FILE_MONITOR_EVENT_CREATED)
         g_idle_add_full (G_PRIORITY_DEFAULT_IDLE,
                          (GSourceFunc) hd_shortcut_widgets_scan_for_desktop_files,
-                         gnome_vfs_get_local_path_from_uri (info_uri),
+                         g_file_get_path (other_file),
                          (GDestroyNotify) g_free);
     }
   else
     {
-      if (event_type == GNOME_VFS_MONITOR_EVENT_CREATED ||
-          event_type == GNOME_VFS_MONITOR_EVENT_CHANGED)
+      if (event_type == G_FILE_MONITOR_EVENT_CREATED ||
+          event_type == G_FILE_MONITOR_EVENT_CHANGED)
         g_idle_add_full (G_PRIORITY_DEFAULT_IDLE,
                          (GSourceFunc) hd_shortcut_widgets_load_desktop_file,
-                         gnome_vfs_get_local_path_from_uri (info_uri),
+                         g_file_get_path (other_file),
                          (GDestroyNotify) g_free);
-      else if (event_type == GNOME_VFS_MONITOR_EVENT_DELETED)
+      else if (event_type == G_FILE_MONITOR_EVENT_DELETED)
         {
           g_idle_add_full (G_PRIORITY_DEFAULT_IDLE,
                            (GSourceFunc) hd_shortcut_widgets_remove_desktop_file,
-                           gnome_vfs_get_local_path_from_uri (info_uri),
+                           g_file_get_path (other_file),
                            (GDestroyNotify) g_free);
         }
     }
@@ -505,18 +506,38 @@ visit_func (const char        *f_path,
     {
       case FTW_D:
           {
-            GnomeVFSMonitorHandle *handle;
+            GFileMonitor *handle;
+            GFile *file = NULL;
+            GError *error = NULL;
             HDShortcutWidgetsPrivate *priv = HD_SHORTCUT_WIDGETS (hd_shortcut_widgets_get ())->priv;
 
-            gnome_vfs_monitor_add (&handle,
-                                   f_path,
-                                   GNOME_VFS_MONITOR_DIRECTORY,
-                                   (GnomeVFSMonitorCallback) applications_dir_changed,
-                                   NULL);
+            file = g_file_new_for_path (f_path);
+            handle = g_file_monitor_directory (file,
+                                               G_FILE_MONITOR_NONE,
+                                               NULL,
+                                               &error);
 
-            g_hash_table_insert (priv->monitors,
-                                 g_strdup (f_path),
-                                 handle);
+            if (error != NULL)
+              {
+                gchar *path;
+                path = g_file_get_parse_name (file);
+                g_warning ("Unable to monitor directory %s: %s",
+                path, error->message);
+                g_error_free (error);
+                g_free (path);
+              }
+            else
+              {
+
+                g_signal_connect (handle, "changed",
+                                  G_CALLBACK (applications_dir_changed),
+                                  NULL);
+
+                g_hash_table_insert (priv->monitors,
+                                     g_strdup (f_path),
+                                     handle);
+              }
+            g_object_unref (file);
           }
         break;
       case FTW_F:
@@ -624,7 +645,7 @@ hd_shortcut_widgets_init (HDShortcutWidgets *widgets)
   priv->installed_shortcuts = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                      g_free, NULL);
   priv->monitors = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                          g_free, (GDestroyNotify) gnome_vfs_monitor_cancel);
+                                          g_free, (GDestroyNotify) g_file_monitor_cancel);
 
   priv->model = GTK_TREE_MODEL (gtk_list_store_new (3,
                                                     G_TYPE_STRING,

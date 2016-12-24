@@ -98,8 +98,8 @@ hd_install_widgets_dialog_constructed (GObject *object)
                 "text-column", hd_widgets_get_text_column (priv->widgets),
                 NULL);
 
-  hildon_touch_selector_set_hildon_ui_mode (HILDON_TOUCH_SELECTOR (priv->selector),
-                                            HILDON_UI_MODE_NORMAL);
+//  hildon_touch_selector_set_hildon_ui_mode (HILDON_TOUCH_SELECTOR (priv->selector),
+//                                            HILDON_UI_MODE_NORMAL);
   hildon_picker_dialog_set_selector (HILDON_PICKER_DIALOG (object),
                                      HILDON_TOUCH_SELECTOR (priv->selector));
 

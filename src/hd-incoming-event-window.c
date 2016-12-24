@@ -112,13 +112,13 @@ hd_incoming_event_window_timeout (HDIncomingEventWindow *window)
 {
   HDIncomingEventWindowPrivate *priv = window->priv;
 
-  GDK_THREADS_ENTER ();
+//  GDK_THREADS_ENTER ();
 
   priv->timeout_id = 0;
 
   g_signal_emit (window, signals[RESPONSE], 0, GTK_RESPONSE_DELETE_EVENT);
 
-  GDK_THREADS_LEAVE ();
+//  GDK_THREADS_LEAVE ();
 
   return FALSE;
 }
@@ -189,12 +189,12 @@ hd_incoming_event_window_set_string_xwindow_property (GtkWidget *widget,
   GdkDisplay *dpy;
 
   /* Check if widget is realized. */
-  if (!GTK_WIDGET_REALIZED (widget))
+  if (!gtk_widget_get_realized (widget))
     return;
 
-  window = widget->window;
+  window = gtk_widget_get_window (widget);
 
-  dpy = gdk_drawable_get_display (window);
+  dpy = gdk_window_get_display (window);
   atom = gdk_x11_get_xatom_by_name_for_display (dpy, prop);
 
   if (value)
@@ -273,12 +273,13 @@ hd_incoming_event_window_realize (GtkWidget *widget)
   GdkScreen *screen;
   const gchar *notification_type, *icon;
   GtkIconSize icon_size;
-  GdkPixmap *pixmap;
+  cairo_surface_t *pixmap;
+  cairo_pattern_t *pattern;
   cairo_t *cr;
 
   screen = gtk_widget_get_screen (widget);
-  gtk_widget_set_colormap (widget,
-                           gdk_screen_get_rgba_colormap (screen));
+  gtk_widget_set_visual (widget,
+                           gdk_screen_get_rgba_visual (screen));
 
   gtk_widget_set_app_paintable (widget,
                                 TRUE);
@@ -288,7 +289,7 @@ hd_incoming_event_window_realize (GtkWidget *widget)
   GTK_WIDGET_CLASS (hd_incoming_event_window_parent_class)->realize (widget);
 
   /* Notification window */
-  gdk_window_set_type_hint (widget->window, GDK_WINDOW_TYPE_HINT_NOTIFICATION);
+  gdk_window_set_type_hint (gtk_widget_get_window(widget), GDK_WINDOW_TYPE_HINT_NOTIFICATION);
 
   /* Set the _NET_WM_WINDOW_TYPE property to _HILDON_WM_WINDOW_TYPE_HOME_APPLET */
   if (priv->preview)
@@ -321,17 +322,23 @@ hd_incoming_event_window_realize (GtkWidget *widget)
   hd_incoming_event_window_update_title_and_amount (HD_INCOMING_EVENT_WINDOW (widget));
 
   /* Set background to transparent pixmap */
-  pixmap = gdk_pixmap_new (GDK_DRAWABLE (widget->window), 1, 1, -1);
-  cr = gdk_cairo_create (GDK_DRAWABLE (pixmap));
+  //TODO NOT SURE THIS IS RIGHT
+  GdkWindow* window = gtk_widget_get_window(widget);
+  pixmap = gdk_window_create_similar_surface(window, CAIRO_CONTENT_COLOR_ALPHA, gdk_window_get_width(window), gdk_window_get_height(window));
+  cr = cairo_create (pixmap);
   cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
   cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 0.0);
   cairo_paint (cr);
   cairo_destroy (cr);
 
-  gdk_window_set_back_pixmap (widget->window, pixmap, FALSE);
-  g_object_unref(pixmap);
+  pattern = cairo_pattern_create_for_surface (pixmap);
+  cairo_surface_destroy (pixmap);
+
+  gdk_window_set_background_pattern(window, pattern);
+  cairo_pattern_destroy (pattern);
 }
 
+#ifdef DEAD_CODE
 static gboolean
 hd_incoming_event_window_expose_event (GtkWidget *widget,
                                        GdkEventExpose *event)
@@ -339,7 +346,7 @@ hd_incoming_event_window_expose_event (GtkWidget *widget,
   HDIncomingEventWindowPrivate *priv = HD_INCOMING_EVENT_WINDOW (widget)->priv;
   cairo_t *cr;
 
-  cr = gdk_cairo_create (GDK_DRAWABLE (widget->window));
+  cr = gdk_cairo_create (gtk_widget_get_window(widget));
   gdk_cairo_region (cr, event->region);
   cairo_clip (cr);
 
@@ -357,6 +364,27 @@ hd_incoming_event_window_expose_event (GtkWidget *widget,
 
   return GTK_WIDGET_CLASS (hd_incoming_event_window_parent_class)->expose_event (widget,
                                                                                  event);
+}
+#endif //DEAD_CODE
+
+static gboolean
+hd_incoming_event_window_draw_signal (GtkWidget *widget,
+                                      cairo_t *cr)
+{
+  HDIncomingEventWindowPrivate *priv = HD_INCOMING_EVENT_WINDOW (widget)->priv;
+
+  cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
+
+  cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 0.0);
+  cairo_paint (cr);
+
+  cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+
+  cairo_set_source_surface (cr, priv->bg_image, 0.0, 0.0);
+  cairo_paint (cr);
+
+  return GTK_WIDGET_CLASS (hd_incoming_event_window_parent_class)->draw (widget,
+                                                                         cr);
 }
 
 static void
@@ -524,7 +552,7 @@ hd_incoming_event_window_class_init (HDIncomingEventWindowClass *klass)
   widget_class->delete_event = hd_incoming_event_window_delete_event;
   widget_class->map_event = hd_incoming_event_window_map_event;
   widget_class->realize = hd_incoming_event_window_realize;
-  widget_class->expose_event = hd_incoming_event_window_expose_event;
+  widget_class->draw = hd_incoming_event_window_draw_signal;
 
   object_class->dispose = hd_incoming_event_window_dispose;
   object_class->finalize = hd_incoming_event_window_finalize;
@@ -595,7 +623,7 @@ hd_incoming_event_window_class_init (HDIncomingEventWindowClass *klass)
                                                         "The message of the incoming event",
                                                         NULL,
                                                         G_PARAM_READWRITE));
-
+#ifdef FIX_THIS
   /* Add shadow to label */
   gtk_rc_parse_string ("style \"HDIncomingEventWindow-Text\" = \"osso-color-themeing\" {\n"
                        "  fg[NORMAL] = @NotificationTextColor\n"
@@ -603,6 +631,7 @@ hd_incoming_event_window_class_init (HDIncomingEventWindowClass *klass)
                        "style \"HDIncomingEventWindow-Secondary\" = \"osso-color-themeing\" {\n"
                        "  fg[NORMAL] = @NotificationSecondaryTextColor\n"
                        "} widget \"*.HDIncomingEventWindow-Secondary\" style \"HDIncomingEventWindow-Secondary\"");
+#endif
   g_type_class_add_private (klass, sizeof (HDIncomingEventWindowPrivate));
 }
 
@@ -635,8 +664,9 @@ hd_incoming_event_window_init (HDIncomingEventWindow *window)
 
   window->priv = priv;
 
-  main_table = gtk_table_new (2, 2, FALSE);
-  gtk_table_set_col_spacings (GTK_TABLE (main_table), ICON_SPACING);
+  //main_table = gtk_table_new (2, 2, FALSE);
+  main_table = gtk_grid_new();
+  gtk_grid_set_column_spacing (GTK_GRID (main_table), ICON_SPACING);
   gtk_container_set_border_width (GTK_CONTAINER (main_table), WINDOW_MARGIN);
   gtk_widget_set_size_request (GTK_WIDGET (main_table), WINDOW_WIDTH, WINDOW_HEIGHT);
   gtk_widget_show (main_table);
@@ -645,51 +675,52 @@ hd_incoming_event_window_init (HDIncomingEventWindow *window)
 /*  gtk_image_set_pixel_size (GTK_IMAGE (priv->icon), HILDON_ICON_SIZE_STYLUS); */
   gtk_widget_set_size_request (priv->icon, ICON_SIZE, ICON_SIZE);
   gtk_widget_show (priv->icon);
-  gtk_table_attach (GTK_TABLE (main_table),
+  gtk_grid_attach (GTK_GRID (main_table),
                     priv->icon,
-                    0, 1,
-                    0, 1,
                     0, 0,
-                    0, 0);
+                    1, 1);
 
   priv->title = gtk_label_new (NULL);
   gtk_widget_set_name (GTK_WIDGET (priv->title), "HDIncomingEventWindow-Text");
-  gtk_misc_set_alignment (GTK_MISC (priv->title), 0.0, 0.5);
+//  gtk_misc_set_alignment (GTK_MISC (priv->title), 0.0, 0.5);
+  gtk_widget_set_halign (priv->title, GTK_ALIGN_START);
+  gtk_widget_set_valign (priv->title, GTK_ALIGN_CENTER);
   gtk_widget_set_size_request (priv->title, TITLE_TEXT_WIDTH, TITLE_TEXT_HEIGHT);
   hildon_helper_set_logical_font (priv->title, TITLE_TEXT_FONT);
   gtk_widget_show (priv->title);
-  gtk_table_attach (GTK_TABLE (main_table),
+  gtk_grid_attach (GTK_GRID (main_table),
                     priv->title,
-                    1, 2,
-                    0, 1,
-                    GTK_EXPAND | GTK_FILL, GTK_FILL,
-                    0, TITLE_TEXT_PADDING);
+                    1, 0,
+                    1, 1);
+  // TABLE EXTRAS: GTK_EXPAND | GTK_FILL, GTK_FILL, 0, TITLE_TEXT_PADDING);
 
   priv->amount_label = gtk_label_new (NULL);
   gtk_widget_set_name (GTK_WIDGET (priv->amount_label), "HDIncomingEventWindow-Text");
-  gtk_misc_set_alignment (GTK_MISC (priv->amount_label), 0.5, 0.5);
+//  gtk_misc_set_alignment (GTK_MISC (priv->amount_label), 0.5, 0.5);
+  gtk_widget_set_halign (priv->title, GTK_ALIGN_CENTER);
+  gtk_widget_set_valign (priv->title, GTK_ALIGN_CENTER);
   gtk_widget_set_size_request (priv->amount_label, ICON_SIZE, SECONDARY_TEXT_HEIGHT);
   hildon_helper_set_logical_font (priv->amount_label, SECONDARY_TEXT_FONT);
   gtk_widget_show (priv->amount_label);
-  gtk_table_attach (GTK_TABLE (main_table),
+  gtk_grid_attach (GTK_GRID (main_table),
                     priv->amount_label,
                     0, 1,
-                    1, 2,
-                    GTK_FILL, GTK_FILL,
-                    0, 0);
+                    1, 1);
+  // TABLE EXTRAS: GTK_FILL, GTK_FILL, 0, 0);
 
   priv->message = gtk_label_new (NULL);
   gtk_widget_set_name (GTK_WIDGET (priv->message), "HDIncomingEventWindow-Secondary");
-  gtk_misc_set_alignment (GTK_MISC (priv->message), 0.0, 0.5);
+//  gtk_misc_set_alignment (GTK_MISC (priv->message), 0.0, 0.5);
+  gtk_widget_set_halign (priv->title, GTK_ALIGN_START);
+  gtk_widget_set_valign (priv->title, GTK_ALIGN_CENTER);
   gtk_widget_set_size_request (priv->message, SECONDARY_TEXT_WIDTH, SECONDARY_TEXT_HEIGHT);
   hildon_helper_set_logical_font (priv->message, SECONDARY_TEXT_FONT);
   gtk_widget_show (priv->message);
-  gtk_table_attach (GTK_TABLE (main_table),
+  gtk_grid_attach (GTK_GRID (main_table),
                     priv->message,
-                    1, 2,
-                    1, 2,
-                    GTK_EXPAND | GTK_FILL, GTK_FILL,
-                    0, 0);
+                    1, 1,
+                    1, 1);
+  // TABLE EXTRAS: GTK_EXPAND | GTK_FILL, GTK_FILL, 0, 0);
 
   /* Pack containers */
   gtk_container_add (GTK_CONTAINER (window), main_table);

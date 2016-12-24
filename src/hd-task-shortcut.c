@@ -181,8 +181,9 @@ hd_task_shortcut_realize (GtkWidget *widget)
   GdkScreen *screen;
 
   screen = gtk_widget_get_screen (widget);
-  gtk_widget_set_colormap (widget,
-                           gdk_screen_get_rgba_colormap (screen));
+
+  gtk_widget_set_visual (widget,
+                         gdk_screen_get_rgba_visual (screen));
 
   gtk_widget_set_app_paintable (widget,
                                 TRUE);
@@ -191,16 +192,11 @@ hd_task_shortcut_realize (GtkWidget *widget)
 }
 
 static gboolean
-hd_task_shortcut_expose_event (GtkWidget *widget,
-                               GdkEventExpose *event)
+hd_task_shortcut_draw_signal (GtkWidget *widget,
+                              cairo_t   *cr)
 {
   HDTaskShortcutPrivate *priv = HD_TASK_SHORTCUT (widget)->priv; 
-  cairo_t *cr;
   cairo_surface_t *bg;
-
-  cr = gdk_cairo_create (GDK_DRAWABLE (widget->window));
-  gdk_cairo_region (cr, event->region);
-  cairo_clip (cr);
   
   if (priv->button_pressed)
     bg = priv->bg_active;
@@ -218,10 +214,8 @@ hd_task_shortcut_expose_event (GtkWidget *widget,
       cairo_paint (cr);
     }
 
-  cairo_destroy (cr);
-
-  return GTK_WIDGET_CLASS (hd_task_shortcut_parent_class)->expose_event (widget,
-                                                                         event);
+  return GTK_WIDGET_CLASS (hd_task_shortcut_parent_class)->draw(widget,
+                                                                cr);
 }
 
 static void
@@ -254,7 +248,7 @@ hd_task_shortcut_class_init (HDTaskShortcutClass *klass)
   object_class->finalize = hd_task_shortcut_finalize;
 
   widget_class->realize = hd_task_shortcut_realize;
-  widget_class->expose_event = hd_task_shortcut_expose_event;
+  widget_class->draw = hd_task_shortcut_draw_signal;
   widget_class->show = hd_task_shortcut_show;
 
   g_type_class_add_private (klass, sizeof (HDTaskShortcutPrivate));
@@ -325,7 +319,7 @@ static void
 hd_task_shortcut_init (HDTaskShortcut *applet)
 {
   HDTaskShortcutPrivate *priv;
-  GtkWidget *alignment;
+  //GtkWidget *alignment;
 
   priv = HD_TASK_SHORTCUT_GET_PRIVATE (applet);
   applet->priv = priv;
@@ -341,16 +335,15 @@ hd_task_shortcut_init (HDTaskShortcut *applet)
   g_signal_connect (applet, "leave-notify-event",
                     G_CALLBACK (leave_notify_event_cb), applet);
 
-  alignment = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
-  gtk_widget_show (alignment);
+  //alignment = gtk_alignment_new (0.5, 0.5, 0.0, 0.0);
+  //gtk_widget_show (alignment);
 
   priv->icon = gtk_image_new ();
   gtk_widget_show (priv->icon);
   gtk_image_set_pixel_size (GTK_IMAGE (priv->icon), ICON_WIDTH);
   gtk_widget_set_size_request (priv->icon, ICON_WIDTH, ICON_HEIGHT);
 
-  gtk_container_add (GTK_CONTAINER (applet), alignment);
-  gtk_container_add (GTK_CONTAINER (alignment), priv->icon);
+  gtk_container_add (GTK_CONTAINER (applet), priv->icon);
 
   gtk_widget_set_size_request (GTK_WIDGET (applet), SHORTCUT_WIDTH, SHORTCUT_HEIGHT);
 
